@@ -10,11 +10,10 @@ $plugins->add_hook('private_start', 'admhijack_private_start');
 $plugins->add_hook('forumdisplay_start', 'admhijack_forumdisplay_start');
 $plugins->add_hook('showthread_start', 'admhijack_showthread_start');
 
-$lang->load('admhijack');
-
 function admhijack_info()
 {
     global $lang;
+    $lang->load('admhijack');
 
     return array(
         'name' => $lang->admhijack_name,
@@ -30,6 +29,7 @@ function admhijack_info()
 function admhijack_activate()
 {
     global $db, $lang;
+    $lang->load('admhijack');
 
     // Settings group array details
     $group = array(
@@ -137,6 +137,8 @@ function admhijack_deactivate()
 function admhijack_login()
 {
     global $mybb, $lang;
+    $lang->load('admhijack');
+    
     if (!admhijack_allowed() || $mybb->input['do'] != 'hijack' || !$mybb->input['uid'])
         return;
 
@@ -195,6 +197,7 @@ function admhijack_log_admin_action()
 function admhijack_logout()
 {
     global $mybb, $lang;
+    $lang->load('admhijack');
 
     if (admhijack_allowed() && $mybb->input['do'] == 'regenkey' && $mybb->input['uid']) {
         verify_post_check($mybb->input['my_post_key']);
@@ -239,6 +242,7 @@ function admhijack_logout()
 function admhijack_profile()
 {
     global $templates, $mybb, $lang;
+    $lang->load('admhijack');
 
     if (!admhijack_allowed()) {
         return;
@@ -286,6 +290,7 @@ function admhijack_allowed()
 function admhijack_private_start()
 {
     global $mybb,$lang;
+    $lang->load('admhijack');
 
     $cookies = &$_COOKIE;
 
@@ -299,6 +304,7 @@ function admhijack_private_start()
 function admhijack_forumdisplay_start()
 {
     global $mybb,$lang;
+    $lang->load('admhijack');
 
     $cookies = &$_COOKIE;
 
@@ -316,6 +322,7 @@ function admhijack_forumdisplay_start()
 function admhijack_showthread_start()
 {
     global $mybb, $fid,$lang;
+    $lang->load('admhijack');
 
     $cookies = &$_COOKIE;
 

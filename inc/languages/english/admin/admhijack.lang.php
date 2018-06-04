@@ -5,7 +5,7 @@ $l['admhijack_desc'] = 'Allows admins to log into another user\'s account via th
 $l['setting_group_admhijack'] = "Login As User";
 $l['setting_group_admhijack_desc'] = 'Settings for logging in as user';
 
-$l['setting_loginasgroups'] = 'Allowed Groups';
-$l['setting_loginasgroups_desc'] = 'Which groups can use log in as a user';
-$l['setting_deniedforums'] = 'Denied Forums';
-$l['setting_deniedforums_desc'] = 'These forums cannot be accessed when logged in as another user.';
+$l['setting_admhijack_loginasgroups'] = 'Allowed Groups';
+$l['setting_admhijack_loginasgroups_desc'] = 'Which groups can use log in as a user';
+$l['setting_admhijack_deniedforums'] = 'Denied Forums';
+$l['setting_admhijack_deniedforums_desc'] = 'These forums cannot be accessed when logged in as another user.';
