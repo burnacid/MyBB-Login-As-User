@@ -23,6 +23,7 @@ function admhijack_info()
         'authorsite' => 'https://lenders-it.nl',
         'version' => '2.0',
         'compatibility' => '18*',
+        'codename' => 'admhijack'
         );
 }
 
