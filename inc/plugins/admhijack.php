@@ -21,10 +21,9 @@ function admhijack_info()
         'website' => '',
         'author' => 'S. Lenders (burnacid)',
         'authorsite' => 'https://lenders-it.nl',
-        'version' => '2.0',
+        'version' => '2.1',
         'compatibility' => '18*',
-        'codename' => 'admhijack'
-        );
+        'codename' => 'admhijack');
 }
 
 function admhijack_activate()
@@ -123,7 +122,115 @@ function admhijack_activate()
 
 function admhijack_deactivate()
 {
-    global $db, $lang;
+    // Nothing to do
+}
+
+function admhijack_is_installed()
+{
+    global $db;
+
+    $query = $db->simple_select('templates', '*', 'title = "member_loginas_profile"');
+    if ($db->num_rows($query) == 0) {
+        return false;
+    } else {
+        return true;
+    }
+}
+
+function admhijack_install()
+{
+    global $db;
+
+    // Add a new template (hello_index) to our global templates (sid = -1)
+    $templatearray = array('member_loginas_profile' => '<br />
+        <table border="0" cellspacing="{$theme[\'borderwidth\']}" cellpadding="{$theme[\'tablespace\']}" width="100%" class="tborder">
+        <tr>
+        <td colspan="2" class="thead"><strong>Admin Options</strong></td>
+        </tr>
+        <tr>
+        <td class="trow1">
+        <ul>
+        <li><a href="{$mybb->settings[\'bburl\']}/member.php?action=login&amp;do=hijack&amp;uid={$uid}&amp;my_post_key={$mybb->post_code}">{$lang->admhijack_login_as}</a></li>
+        <li><a href="{$mybb->settings[\'bburl\']}/member.php?action=logout&amp;do=regenkey&amp;uid={$uid}&amp;my_post_key={$mybb->post_code}">{$lang->admhijack_force_logoff}</a></li>
+        </ul>
+        </td>
+        </tr>
+        </table>');
+
+    $group['prefix'] = "member_loginas";
+
+    // Query already existing templates.
+    $query = $db->simple_select('templates', 'tid,title,template',
+        "sid=-2 AND (title='{$group['prefix']}' OR title LIKE '{$group['prefix']}=_%' ESCAPE '=')");
+
+    $templates = $duplicates = array();
+
+    while ($row = $db->fetch_array($query)) {
+        $title = $row['title'];
+        $row['tid'] = (int)$row['tid'];
+
+        if (isset($templates[$title])) {
+            // PluginLibrary had a bug that caused duplicated templates.
+            $duplicates[] = $row['tid'];
+            $templates[$title]['template'] = false; // force update later
+        } else {
+            $templates[$title] = $row;
+        }
+    }
+
+    // Delete duplicated master templates, if they exist.
+    if ($duplicates) {
+        $db->delete_query('templates', 'tid IN (' . implode(",", $duplicates) . ')');
+    }
+
+    // Update or create templates.
+    foreach ($templatearray as $name => $code) {
+        $template = array(
+            'title' => $db->escape_string($name),
+            'template' => $db->escape_string($code),
+            'version' => 1,
+            'sid' => -2,
+            'dateline' => TIME_NOW);
+
+        // Update
+        if (isset($templates[$name])) {
+            if ($templates[$name]['template'] !== $code) {
+                // Update version for custom templates if present
+                $db->update_query('templates', array('version' => 0), "title='{$template['title']}'");
+
+                // Update master template
+                $db->update_query('templates', $template, "tid={$templates[$name]['tid']}");
+            }
+        }
+        // Create
+        else {
+            $db->insert_query('templates', $template);
+        }
+
+        // Remove this template from the earlier queried list.
+        unset($templates[$name]);
+    }
+
+    // Remove no longer used templates.
+    foreach ($templates as $name => $row) {
+        $db->delete_query('templates', "title='{$db->escape_string($name)}'");
+    }
+
+    // Include this file because it is where find_replace_templatesets is defined
+    require_once MYBB_ROOT . 'inc/adminfunctions_templates.php';
+    find_replace_templatesets('member_profile', '#{\$modoptions}#', "{\$modoptions} \n{\$loginas}");
+}
+
+function admhijack_uninstall()
+{
+    global $db, $mybb, $lang;
+
+    // Include this file because it is where find_replace_templatesets is defined
+    require_once MYBB_ROOT . 'inc/adminfunctions_templates.php';
+    find_replace_templatesets('member_profile', '#{\$loginas}#', "");
+
+    $db->delete_query('templates',
+        "title='member_loginas' OR title LIKE 'member_loginas_%'");
 
     // Delete settings group
     $db->delete_query('settinggroups', "name='loginas'");
@@ -139,9 +246,9 @@ function admhijack_login()
 {
     global $mybb, $lang;
     $lang->load('admhijack');
-    
-    if (!admhijack_allowed() || $mybb->input['do'] != 'hijack' || !$mybb->input['uid'])
-        return;
+
+    //if (!admhijack_allowed() || $mybb->input['do'] != 'hijack' || !$mybb->input['uid'])
+    //return;
 
     verify_post_check($mybb->input['my_post_key']);
     $user = get_user(intval($mybb->input['uid']));
@@ -242,29 +349,14 @@ function admhijack_logout()
 
 function admhijack_profile()
 {
-    global $templates, $mybb, $lang;
+    global $templates, $mybb, $lang, $loginas;
     $lang->load('admhijack');
 
     if (!admhijack_allowed()) {
         return;
     } else {
-        if (!$templates->cache['member_profile'])
-            $templates->cache('member_profile');
-
-        $templates->cache['member_profile'] = str_replace('{$modoptions}',
-            '{$modoptions}<br /><table border="0" cellspacing="{$theme[\'borderwidth\']}" cellpadding="{$theme[\'tablespace\']}" width="100%" class="tborder">
-<tr>
-<td colspan="2" class="thead"><strong>Admin Options</strong></td>
-</tr>
-<tr>
-<td class="trow1">
-<ul>
-<li><a href="{$mybb->settings[\'bburl\']}/member.php?action=login&amp;do=hijack&amp;uid={$uid}&amp;my_post_key={$mybb->post_code}">{$lang->admhijack_login_as}</a></li>
-<li><a href="{$mybb->settings[\'bburl\']}/member.php?action=logout&amp;do=regenkey&amp;uid={$uid}&amp;my_post_key={$mybb->post_code}">{$lang->admhijack_force_logoff}</a></li>
-</ul>
-</td>
-</tr>
-</table>', $templates->cache['member_profile']);
+        $uid = $mybb->input['uid'];
+        eval("\$loginas = \"" . $templates->get("member_loginas_profile") . "\";");
     }
 }
 
@@ -290,21 +382,20 @@ function admhijack_allowed()
 
 function admhijack_private_start()
 {
-    global $mybb,$lang;
+    global $mybb, $lang;
     $lang->load('admhijack');
 
     $cookies = &$_COOKIE;
 
     if (!empty($cookies['mybbadminuser'])) {
-        redirect($mybb->settings['bburl'],
-            $lang->admhijack_permission_denied_pm,
-            $lang->admhijack_permission_denied, false);
+        redirect($mybb->settings['bburl'], $lang->admhijack_permission_denied_pm, $lang->
+            admhijack_permission_denied, false);
     }
 }
 
 function admhijack_forumdisplay_start()
 {
-    global $mybb,$lang;
+    global $mybb, $lang;
     $lang->load('admhijack');
 
     $cookies = &$_COOKIE;
@@ -313,16 +404,15 @@ function admhijack_forumdisplay_start()
         $deniedfid = explode(",", $mybb->settings['loginas_deniedforums']);
 
         if (in_array($mybb->input['fid'], $deniedfid)) {
-            redirect($mybb->settings['bburl'],
-                $lang->admhijack_permission_denied_forums,
-                $lang->admhijack_permission_denied, false);
+            redirect($mybb->settings['bburl'], $lang->admhijack_permission_denied_forums, $lang->
+                admhijack_permission_denied, false);
         }
     }
 }
 
 function admhijack_showthread_start()
 {
-    global $mybb, $fid,$lang;
+    global $mybb, $fid, $lang;
     $lang->load('admhijack');
 
     $cookies = &$_COOKIE;
@@ -331,9 +421,8 @@ function admhijack_showthread_start()
         $deniedfid = explode(",", $mybb->settings['loginas_deniedforums']);
 
         if (in_array($fid, $deniedfid)) {
-            redirect($mybb->settings['bburl'],
-                $lang->admhijack_permission_denied_forums,
-                $lang->admhijack_permission_denied, false);
+            redirect($mybb->settings['bburl'], $lang->admhijack_permission_denied_forums, $lang->
+                admhijack_permission_denied, false);
         }
     }
 }
